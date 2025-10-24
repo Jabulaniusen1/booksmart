@@ -4,17 +4,19 @@ import { useAppStore } from '@/lib/store';
 import { db } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 export default function UploadScreen() {
@@ -135,6 +137,12 @@ export default function UploadScreen() {
           <Text style={[styles.loginText, { color: Colors[colorScheme ?? 'light'].text }]}>
             Please log in to upload materials
           </Text>
+          <TouchableOpacity
+            style={[styles.loginButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
+            onPress={() => router.push('/login')}
+          >
+            <Text style={styles.loginButtonText}>Login now</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -147,8 +155,17 @@ export default function UploadScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
-          <Text style={styles.headerTitle}>Upload Material</Text>
-          <Text style={styles.headerSubtitle}>Share your study materials with fellow students</Text>
+          <View style={styles.headerContent}>
+            <Image 
+              source={require('@/assets/images/book smart logo.png')} 
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>Upload Material</Text>
+              <Text style={styles.headerSubtitle}>Share your study materials with fellow students</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.form}>
@@ -307,6 +324,18 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerLogo: {
+    width: 50,
+    height: 35,
+    marginRight: 12,
+  },
+  headerText: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -403,5 +432,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 16,
     textAlign: 'center',
+    marginBottom: 24,
+  },
+  loginButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  loginButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getAvatarSource } from '@/lib/avatar';
 import { useAppStore } from '@/lib/store';
 import { auth, db } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
@@ -141,6 +142,12 @@ export default function ProfileScreen() {
           <Text style={[styles.loginText, { color: Colors[colorScheme ?? 'light'].text }]}>
             Please log in to view your profile
           </Text>
+          <TouchableOpacity
+            style={[styles.loginButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
+            onPress={() => router.push('/login')}
+          >
+            <Text style={styles.loginButtonText}>Login now</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -151,19 +158,29 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
+          <View style={styles.headerTop}>
+            <Image 
+              source={require('@/assets/images/book smart logo.png')} 
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={handleEditProfile}
+            >
+              <Ionicons name="create-outline" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
           <View style={styles.profileInfo}>
-            <Image source={{ uri: user.avatar_url }} style={styles.avatar} />
+            <Image 
+              source={getAvatarSource(user.id, user.avatar_url)} 
+              style={styles.avatar} 
+            />
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user.name}</Text>
+              <Text style={styles.userName}>{user.full_name}</Text>
               <Text style={styles.userEmail}>{user.email}</Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={handleEditProfile}
-          >
-            <Ionicons name="create-outline" size={20} color="white" />
-          </TouchableOpacity>
         </View>
 
         {/* Stats Cards */}
@@ -484,9 +501,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+  },
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
+  },
+  headerLogo: {
+    width: 50,
+    height: 35,
   },
   profileInfo: {
     flexDirection: 'row',
@@ -635,6 +659,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 16,
     textAlign: 'center',
+    marginBottom: 24,
+  },
+  loginButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  loginButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalContainer: {
     flex: 1,

@@ -1,18 +1,20 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { auth } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 export default function SignupBasicScreen() {
@@ -23,6 +25,8 @@ export default function SignupBasicScreen() {
     confirmPassword: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const colorScheme = useColorScheme();
 
   const updateFormData = (field: string, value: string) => {
@@ -80,6 +84,11 @@ export default function SignupBasicScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
+          <Image 
+            source={require('@/assets/images/book smart logo.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={[styles.title, { color: Colors[colorScheme ?? 'light'].text }]}>
             Create Account
           </Text>
@@ -135,42 +144,66 @@ export default function SignupBasicScreen() {
             <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
               Password *
             </Text>
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  backgroundColor: Colors[colorScheme ?? 'light'].background,
-                  borderColor: Colors[colorScheme ?? 'light'].gray[300],
-                  color: Colors[colorScheme ?? 'light'].text,
-                }
-              ]}
-              placeholder="Create a password"
-              placeholderTextColor={Colors[colorScheme ?? 'light'].gray[400]}
-              value={formData.password}
-              onChangeText={(value) => updateFormData('password', value)}
-              secureTextEntry
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[
+                  styles.passwordInput,
+                  { 
+                    backgroundColor: Colors[colorScheme ?? 'light'].background,
+                    borderColor: Colors[colorScheme ?? 'light'].gray[300],
+                    color: Colors[colorScheme ?? 'light'].text,
+                  }
+                ]}
+                placeholder="Create a password"
+                placeholderTextColor={Colors[colorScheme ?? 'light'].gray[400]}
+                value={formData.password}
+                onChangeText={(value) => updateFormData('password', value)}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={Colors[colorScheme ?? 'light'].gray[500]}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
               Confirm Password *
             </Text>
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  backgroundColor: Colors[colorScheme ?? 'light'].background,
-                  borderColor: Colors[colorScheme ?? 'light'].gray[300],
-                  color: Colors[colorScheme ?? 'light'].text,
-                }
-              ]}
-              placeholder="Confirm your password"
-              placeholderTextColor={Colors[colorScheme ?? 'light'].gray[400]}
-              value={formData.confirmPassword}
-              onChangeText={(value) => updateFormData('confirmPassword', value)}
-              secureTextEntry
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[
+                  styles.passwordInput,
+                  { 
+                    backgroundColor: Colors[colorScheme ?? 'light'].background,
+                    borderColor: Colors[colorScheme ?? 'light'].gray[300],
+                    color: Colors[colorScheme ?? 'light'].text,
+                  }
+                ]}
+                placeholder="Confirm your password"
+                placeholderTextColor={Colors[colorScheme ?? 'light'].gray[400]}
+                value={formData.confirmPassword}
+                onChangeText={(value) => updateFormData('confirmPassword', value)}
+                secureTextEntry={!showConfirmPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={Colors[colorScheme ?? 'light'].gray[500]}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -214,6 +247,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
+  logo: {
+    width: 120,
+    height: 80,
+    marginBottom: 16,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
@@ -240,6 +278,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
+  },
+  passwordContainer: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    paddingRight: 50,
+    fontSize: 16,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 16,
+    padding: 4,
   },
   nextButton: {
     borderRadius: 12,

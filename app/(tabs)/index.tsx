@@ -6,16 +6,17 @@ import { Material, db, supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Modal,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 export default function HomeScreen() {
@@ -132,10 +133,19 @@ export default function HomeScreen() {
     <View style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
-        <Text style={styles.headerTitle}>BookSmart</Text>
-        <Text style={styles.headerSubtitle}>
-          {user ? `Welcome back, ${user.full_name}!` : 'Discover study materials'}
-        </Text>
+        <View style={styles.headerContent}>
+          <Image 
+            source={require('@/assets/images/book smart logo.png')} 
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+          <View style={styles.headerText}>
+            <Text style={styles.headerTitle}>BookSmart</Text>
+            <Text style={styles.headerSubtitle}>
+              {user ? `Welcome back, ${user.full_name}!` : 'Discover study materials'}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Search and Filters */}
@@ -363,6 +373,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerLogo: {
+    width: 50,
+    height: 35,
+    marginRight: 12,
+  },
+  headerText: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 28,

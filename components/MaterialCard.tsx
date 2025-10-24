@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getAvatarSource } from '@/lib/avatar';
 import { Material } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -130,7 +131,7 @@ export default function MaterialCard({ material, onBookmark, currentUserId }: Ma
       <View style={styles.footer}>
         <View style={styles.uploaderInfo}>
           <Image
-            source={{ uri: material.uploader?.avatar_url }}
+            source={getAvatarSource(material.uploader?.id || '', material.uploader?.avatar_url)}
             style={styles.avatar}
           />
           <View>

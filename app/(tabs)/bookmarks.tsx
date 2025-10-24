@@ -4,10 +4,12 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppStore } from '@/lib/store';
 import { db } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
     FlatList,
+    Image,
     RefreshControl,
     StyleSheet,
     Text,
@@ -73,6 +75,12 @@ export default function BookmarksScreen() {
           <Text style={[styles.loginText, { color: Colors[colorScheme ?? 'light'].text }]}>
             Please log in to view your bookmarks
           </Text>
+          <TouchableOpacity
+            style={[styles.loginButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
+            onPress={() => router.push('/login')}
+          >
+            <Text style={styles.loginButtonText}>Login now</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -82,10 +90,19 @@ export default function BookmarksScreen() {
     <View style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
-        <Text style={styles.headerTitle}>My Bookmarks</Text>
-        <Text style={styles.headerSubtitle}>
-          {bookmarks.length} saved material{bookmarks.length !== 1 ? 's' : ''}
-        </Text>
+        <View style={styles.headerContent}>
+          <Image 
+            source={require('@/assets/images/book smart logo.png')} 
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+          <View style={styles.headerText}>
+            <Text style={styles.headerTitle}>My Bookmarks</Text>
+            <Text style={styles.headerSubtitle}>
+              {bookmarks.length} saved material{bookmarks.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Bookmarks List */}
@@ -132,6 +149,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerLogo: {
+    width: 50,
+    height: 35,
+    marginRight: 12,
+  },
+  headerText: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 28,
@@ -186,5 +215,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 16,
     textAlign: 'center',
+    marginBottom: 24,
+  },
+  loginButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  loginButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -2,24 +2,27 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppStore } from '@/lib/store';
 import { auth, db } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const colorScheme = useColorScheme();
   const { setUser } = useAppStore();
 
@@ -153,6 +156,11 @@ export default function LoginScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
+          <Image 
+            source={require('@/assets/images/book smart logo.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={[styles.title, { color: Colors[colorScheme ?? 'light'].text }]}>
             BookSmart
           </Text>
@@ -188,21 +196,33 @@ export default function LoginScreen() {
             <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
               Password
             </Text>
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  backgroundColor: Colors[colorScheme ?? 'light'].background,
-                  borderColor: Colors[colorScheme ?? 'light'].gray[300],
-                  color: Colors[colorScheme ?? 'light'].text,
-                }
-              ]}
-              placeholder="Enter your password"
-              placeholderTextColor={Colors[colorScheme ?? 'light'].gray[400]}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[
+                  styles.passwordInput,
+                  { 
+                    backgroundColor: Colors[colorScheme ?? 'light'].background,
+                    borderColor: Colors[colorScheme ?? 'light'].gray[300],
+                    color: Colors[colorScheme ?? 'light'].text,
+                  }
+                ]}
+                placeholder="Enter your password"
+                placeholderTextColor={Colors[colorScheme ?? 'light'].gray[400]}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={Colors[colorScheme ?? 'light'].gray[500]}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -247,6 +267,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
+  logo: {
+    width: 120,
+    height: 80,
+    marginBottom: 16,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
@@ -272,6 +297,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
+  },
+  passwordContainer: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    paddingRight: 50,
+    fontSize: 16,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 16,
+    padding: 4,
   },
   loginButton: {
     borderRadius: 12,

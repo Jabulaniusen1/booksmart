@@ -6,12 +6,13 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
     Alert,
+    Image,
     Linking,
     SafeAreaView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 
 interface PDFViewerScreenProps {
@@ -21,6 +22,8 @@ interface PDFViewerScreenProps {
 
 export default function PDFViewerScreen({ material, onClose }: PDFViewerScreenProps) {
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const colorScheme = useColorScheme();
   const { user, addBookmark, removeBookmark } = useAppStore();
 
@@ -53,38 +56,53 @@ export default function PDFViewerScreen({ material, onClose }: PDFViewerScreenPr
 
 
   const handleOpenPDF = async () => {
+    setIsLoading(true);
+    setPdfError(null);
+    
     try {
-      // Increment download count
-      await db.incrementDownloadCount(material.id);
+      console.log('Opening PDF:', material.file_url);
       
+      // Check if the URL can be opened
       const supported = await Linking.canOpenURL(material.file_url);
+      
       if (supported) {
+        // Open PDF in native PDF viewer
         await Linking.openURL(material.file_url);
+        
+        // Increment download count when PDF opens successfully
+        try {
+          await db.incrementDownloadCount(material.id);
+          console.log('Download count incremented');
+        } catch (error) {
+          console.error('Error incrementing download count:', error);
+        }
+        
+        // Close the PDF viewer screen since PDF opened externally
+        onClose();
       } else {
-        Alert.alert('Error', 'Cannot open PDF. Please check your internet connection.');
+        setPdfError('Cannot open PDF. The file may be corrupted or inaccessible.');
       }
     } catch (error) {
       console.error('Error opening PDF:', error);
-      Alert.alert('Error', 'Failed to open PDF. Please try again.');
+      setPdfError('Failed to open PDF. Please check your internet connection.');
     }
+    
+    setIsLoading(false);
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close" size={24} color="white" />
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {material.title}
-          </Text>
-          <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {material.school?.name} • {material.department}
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color="white" />
+          </TouchableOpacity>
+          <Image 
+            source={require('@/assets/images/book smart logo.png')} 
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
           <TouchableOpacity
             style={[styles.headerActionButton, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
             onPress={handleBookmark}
@@ -95,6 +113,14 @@ export default function PDFViewerScreen({ material, onClose }: PDFViewerScreenPr
               color="white" 
             />
           </TouchableOpacity>
+        </View>
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {material.title}
+          </Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {material.school?.name} • {material.department}
+          </Text>
         </View>
       </View>
 
@@ -127,24 +153,44 @@ export default function PDFViewerScreen({ material, onClose }: PDFViewerScreenPr
             <View style={styles.pdfMetaItem}>
               <Ionicons name="library-outline" size={16} color={Colors[colorScheme ?? 'light'].primary} />
               <Text style={[styles.pdfMetaText, { color: Colors[colorScheme ?? 'light'].gray[600] }]}>
-                {material.department} • {material.level}
+                {material.department?.name}
               </Text>
             </View>
             <View style={styles.pdfMetaItem}>
               <Ionicons name="person-outline" size={16} color={Colors[colorScheme ?? 'light'].primary} />
               <Text style={[styles.pdfMetaText, { color: Colors[colorScheme ?? 'light'].gray[600] }]}>
-                Uploaded by {material.uploader?.name}
+                Uploaded by {material.uploader?.full_name}
               </Text>
             </View>
           </View>
           
-          <TouchableOpacity
-            style={[styles.openPdfButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
-            onPress={handleOpenPDF}
-          >
-            <Ionicons name="open-outline" size={20} color="white" />
-            <Text style={styles.openPdfButtonText}>Open PDF</Text>
-          </TouchableOpacity>
+          {isLoading && (
+            <View style={styles.loadingContainer}>
+              <Ionicons name="hourglass-outline" size={24} color={Colors[colorScheme ?? 'light'].primary} />
+              <Text style={[styles.loadingText, { color: Colors[colorScheme ?? 'light'].text }]}>
+                Opening PDF...
+              </Text>
+            </View>
+          )}
+          
+          {pdfError && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={24} color={Colors[colorScheme ?? 'light'].error} />
+              <Text style={[styles.errorText, { color: Colors[colorScheme ?? 'light'].text }]}>
+                {pdfError}
+              </Text>
+            </View>
+          )}
+          
+          {!isLoading && !pdfError && (
+            <TouchableOpacity
+              style={[styles.openPdfButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
+              onPress={handleOpenPDF}
+            >
+              <Ionicons name="open-outline" size={20} color="white" />
+              <Text style={styles.openPdfButtonText}>Open PDF</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -187,15 +233,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingTop: 50,
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   closeButton: {
     padding: 8,
-    marginRight: 12,
+  },
+  headerLogo: {
+    width: 50,
+    height: 35,
   },
   headerInfo: {
     flex: 1,
@@ -293,6 +346,35 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    marginBottom: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    marginLeft: 8,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    marginBottom: 16,
+    backgroundColor: '#fee2e2',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  errorText: {
+    fontSize: 14,
+    marginLeft: 8,
+    textAlign: 'center',
+    color: '#dc2626',
   },
   bottomActions: {
     flexDirection: 'row',
