@@ -258,7 +258,9 @@ export default function UploadScreen() {
               placeholder="University will be auto-selected"
               placeholderTextColor={Colors[colorScheme ?? 'light'].gray[400]}
             />
-
+</View>
+            <View style={styles.inputContainer}>
+              
             <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
               Department *
             </Text>

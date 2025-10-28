@@ -8,15 +8,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Image,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function ProfileScreen() {
@@ -30,8 +30,6 @@ export default function ProfileScreen() {
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
-    department: '',
-    level: '',
   });
   const [recommendationCount, setRecommendationCount] = useState(0);
   const [userMaterials, setUserMaterials] = useState<Material[]>([]);
@@ -105,10 +103,8 @@ export default function ProfileScreen() {
   const handleEditProfile = () => {
     // Initialize form with current user data
     setEditForm({
-      name: user?.name || '',
+      name: user?.full_name || '',
       email: user?.email || '',
-      department: user?.department || '',
-      level: user?.level || '',
     });
     setShowEditModal(true);
   };
@@ -159,6 +155,7 @@ export default function ProfileScreen() {
     if (user) {
       setUser({
         ...user,
+        // @ts-expect-error: extending user for UI state only, not persisted to DB
         bank_name: bankDetails.bankName,
         account_number: bankDetails.accountNumber,
         account_name: bankDetails.accountName,
@@ -351,16 +348,7 @@ export default function ProfileScreen() {
               Department
             </Text>
             <Text style={[styles.infoValue, { color: Colors[colorScheme ?? 'light'].text }]}>
-              {user.department || 'Not specified'}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="layers" size={20} color={Colors[colorScheme ?? 'light'].gray[500]} />
-            <Text style={[styles.infoLabel, { color: Colors[colorScheme ?? 'light'].gray[600] }]}>
-              Level
-            </Text>
-            <Text style={[styles.infoValue, { color: Colors[colorScheme ?? 'light'].text }]}>
-              {user.level || 'Not specified'}
+              {user.department_id || 'Not specified'}
             </Text>
           </View>
         </View>
@@ -448,13 +436,13 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
             onPress={sendTestNotification}
           >
             <Ionicons name="notifications" size={20} color="white" />
             <Text style={styles.actionButtonText}>Test Push Notification</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? 'light'].gray[200] }]}
@@ -630,35 +618,15 @@ export default function ProfileScreen() {
                 style={[
                   styles.input,
                   { 
-                    backgroundColor: Colors[colorScheme ?? 'light'].background,
+                    backgroundColor: Colors[colorScheme ?? 'light'].gray[100],
                     borderColor: Colors[colorScheme ?? 'light'].gray[300],
-                    color: Colors[colorScheme ?? 'light'].text,
+                    color: Colors[colorScheme ?? 'light'].gray[600],
                   }
                 ]}
-                placeholder="Enter your department"
+                value={user.department?.name || 'Not specified'}
+                editable={false}
+                placeholder="Department is set from your profile"
                 placeholderTextColor={Colors[colorScheme ?? 'light'].gray[400]}
-                value={editForm.department}
-                onChangeText={(value) => updateEditForm('department', value)}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
-                Level
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { 
-                    backgroundColor: Colors[colorScheme ?? 'light'].background,
-                    borderColor: Colors[colorScheme ?? 'light'].gray[300],
-                    color: Colors[colorScheme ?? 'light'].text,
-                  }
-                ]}
-                placeholder="Enter your level (e.g., 300 Level)"
-                placeholderTextColor={Colors[colorScheme ?? 'light'].gray[400]}
-                value={editForm.level}
-                onChangeText={(value) => updateEditForm('level', value)}
               />
             </View>
           </ScrollView>
@@ -961,33 +929,13 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
   },
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
   modalCancelText: {
     fontSize: 16,
     fontWeight: '500',
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   modalSaveText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  modalContent: {
-    flex: 1,
-    padding: 20,
   },
   uploadsCard: {
     margin: 20,

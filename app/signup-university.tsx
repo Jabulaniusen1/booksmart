@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -21,6 +22,9 @@ export default function SignupUniversityScreen() {
   const [selectedUniversity, setSelectedUniversity] = useState('');
   const [department, setDepartment] = useState('');
   const [schools, setSchools] = useState<any[]>([]);
+  const [filteredSchools, setFilteredSchools] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(true);
   const colorScheme = useColorScheme();
@@ -54,9 +58,29 @@ export default function SignupUniversityScreen() {
         return;
       }
       setSchools(data || []);
+      setFilteredSchools(data || []);
     } catch (error) {
       Alert.alert('Error', 'Failed to load schools');
     }
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query.trim() === '') {
+      setFilteredSchools(schools);
+    } else {
+      const filtered = schools.filter(school =>
+        school.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredSchools(filtered);
+    }
+  };
+
+  const handleSelectUniversity = (schoolId: string) => {
+    setSelectedUniversity(schoolId);
+    setIsDropdownOpen(false);
+    setSearchQuery('');
+    setFilteredSchools(schools);
   };
 
   const handleSignup = async () => {
@@ -190,43 +214,94 @@ export default function SignupUniversityScreen() {
             <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
               University *
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.universityOptions}>
-              {schools.map((school) => (
-                <TouchableOpacity
-                  key={school.id}
-                  style={[
-                    styles.universityOption,
-                    { 
-                      backgroundColor: selectedUniversity === school.id 
-                        ? Colors[colorScheme ?? 'light'].primary 
-                        : Colors[colorScheme ?? 'light'].gray[100],
-                      borderColor: selectedUniversity === school.id 
-                        ? Colors[colorScheme ?? 'light'].primary 
-                        : Colors[colorScheme ?? 'light'].gray[300]
-                    }
-                  ]}
-                  onPress={() => setSelectedUniversity(school.id)}
-                >
-                  <Text style={[
-                    styles.universityOptionText,
-                    { 
-                      color: selectedUniversity === school.id 
-                        ? 'white' 
-                        : Colors[colorScheme ?? 'light'].text 
-                    }
-                  ]}>
-                    {school.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            {selectedSchool && (
-              <View style={[styles.selectedInfo, { backgroundColor: Colors[colorScheme ?? 'light'].primary + '10' }]}>
-                <Text style={[styles.selectedInfoText, { color: Colors[colorScheme ?? 'light'].primary }]}>
-                  ✓ {selectedSchool.name}
+            <View style={styles.dropdownContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.dropdownButton,
+                  { 
+                    backgroundColor: Colors[colorScheme ?? 'light'].background,
+                    borderColor: Colors[colorScheme ?? 'light'].gray[300],
+                  }
+                ]}
+                onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+              >
+                <Text style={[
+                  styles.dropdownButtonText,
+                  { 
+                    color: selectedSchool 
+                      ? Colors[colorScheme ?? 'light'].text 
+                      : Colors[colorScheme ?? 'light'].gray[400]
+                  }
+                ]}>
+                  {selectedSchool ? selectedSchool.name : 'Select your university'}
                 </Text>
-              </View>
-            )}
+                <Text style={[styles.dropdownArrow, { color: Colors[colorScheme ?? 'light'].gray[500] }]}>
+                  {isDropdownOpen ? '▲' : '▼'}
+                </Text>
+              </TouchableOpacity>
+              
+              {isDropdownOpen && (
+                <View style={[
+                  styles.dropdown,
+                  { 
+                    backgroundColor: Colors[colorScheme ?? 'light'].background,
+                    borderColor: Colors[colorScheme ?? 'light'].gray[300],
+                  }
+                ]}>
+                  <TextInput
+                    style={[
+                      styles.searchInput,
+                      { 
+                        backgroundColor: Colors[colorScheme ?? 'light'].gray[100],
+                        borderColor: Colors[colorScheme ?? 'light'].gray[300],
+                        color: Colors[colorScheme ?? 'light'].text,
+                      }
+                    ]}
+                    placeholder="Search universities..."
+                    placeholderTextColor={Colors[colorScheme ?? 'light'].gray[400]}
+                    value={searchQuery}
+                    onChangeText={handleSearch}
+                    autoFocus={true}
+                  />
+                  
+                  <FlatList
+                    data={filteredSchools}
+                    keyExtractor={(item) => item.id}
+                    style={styles.dropdownList}
+                    showsVerticalScrollIndicator={false}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[
+                          styles.dropdownItem,
+                          { 
+                            backgroundColor: selectedUniversity === item.id 
+                              ? Colors[colorScheme ?? 'light'].primary + '10'
+                              : 'transparent'
+                          }
+                        ]}
+                        onPress={() => handleSelectUniversity(item.id)}
+                      >
+                        <Text style={[
+                          styles.dropdownItemText,
+                          { 
+                            color: selectedUniversity === item.id 
+                              ? Colors[colorScheme ?? 'light'].primary 
+                              : Colors[colorScheme ?? 'light'].text
+                          }
+                        ]}>
+                          {item.name}
+                        </Text>
+                        {selectedUniversity === item.id && (
+                          <Text style={[styles.checkmark, { color: Colors[colorScheme ?? 'light'].primary }]}>
+                            ✓
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              )}
+            </View>
           </View>
 
           <View style={styles.inputContainer}>
@@ -264,14 +339,14 @@ export default function SignupUniversityScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
             <Text style={[styles.backButtonText, { color: Colors[colorScheme ?? 'light'].gray[600] }]}>
               ← Back to Basic Info
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -312,32 +387,72 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
-  universityOptions: {
-    flexDirection: 'row',
+  dropdownContainer: {
+    position: 'relative',
+    zIndex: 1000,
   },
-  universityOption: {
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+  },
+  dropdownButtonText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    marginLeft: 8,
+  },
+  dropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginTop: 4,
+    maxHeight: 300,
+    zIndex: 1001,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    margin: 12,
+    fontSize: 16,
+  },
+  dropdownList: {
+    maxHeight: 200,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginRight: 8,
-    minWidth: 120,
-    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  universityOptionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
+  dropdownItemText: {
+    fontSize: 16,
+    flex: 1,
   },
-  selectedInfo: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  selectedInfoText: {
-    fontSize: 14,
-    fontWeight: '600',
+  checkmark: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   input: {
     borderWidth: 1,

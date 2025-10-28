@@ -163,14 +163,46 @@ export const db = {
 
   async getUserById(id: string) {
     console.log('🔍 Fetching user by ID:', id);
-    const { data, error } = await supabase
+    
+    // First try to get user with department join
+    let { data, error } = await supabase
       .from('users')
       .select(`
         *,
-        school:schools(*)
+        school:schools(*),
+        department:departments!inner(*)
       `)
       .eq('id', id)
       .single();
+    
+    // If that fails, try without department join
+    if (error && error.code === 'PGRST200') {
+      console.log('🔄 Retrying without department join...');
+      const result = await supabase
+        .from('users')
+        .select(`
+          *,
+          school:schools(*)
+        `)
+        .eq('id', id)
+        .single();
+      
+      data = result.data;
+      error = result.error;
+      
+      // If we have department_id, try to fetch department separately
+      if (data && data.department_id) {
+        const { data: deptData } = await supabase
+          .from('departments')
+          .select('*')
+          .eq('id', data.department_id)
+          .single();
+        
+        if (deptData) {
+          data.department = deptData;
+        }
+      }
+    }
     
     console.log('📊 User fetch result:', { data, error });
     if (error) {
