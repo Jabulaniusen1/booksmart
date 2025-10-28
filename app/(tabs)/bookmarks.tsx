@@ -7,14 +7,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Image,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Image,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function BookmarksScreen() {
@@ -149,13 +149,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    marginBottom: 20,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   headerLogo: {
-    width: 50,
+    width: 21,
     height: 35,
     marginRight: 12,
   },
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 4,

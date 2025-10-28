@@ -7,16 +7,16 @@ import * as DocumentPicker from 'expo-document-picker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 export default function UploadScreen() {
@@ -49,7 +49,7 @@ export default function UploadScreen() {
     }
 
     if (!selectedFile) {
-      Alert.alert('Error', 'Please select a PDF file to upload');
+      Alert.alert('Error', 'Please select a file to upload');
       return;
     }
 
@@ -103,10 +103,24 @@ export default function UploadScreen() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType?.includes('pdf')) return '📄';
+    if (mimeType?.includes('word') || mimeType?.includes('document')) return '📝';
+    if (mimeType?.includes('image')) return '🖼️';
+    return '📄';
+  };
+
   const handleFileSelection = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/pdf',
+        type: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'image/png',
+          'image/jpeg',
+          'image/jpg'
+        ],
         copyToCacheDirectory: true,
       });
 
@@ -119,8 +133,23 @@ export default function UploadScreen() {
           return;
         }
 
+        // Validate file type
+        const allowedTypes = [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'image/png',
+          'image/jpeg',
+          'image/jpg'
+        ];
+        
+        if (file.mimeType && !allowedTypes.includes(file.mimeType)) {
+          Alert.alert('Invalid File Type', 'Please select a PDF, DOC, DOCX, PNG, or JPG file');
+          return;
+        }
+
         setSelectedFile(result);
-        console.log('📄 File selected:', file.name, 'Size:', file.size);
+        console.log('📄 File selected:', file.name, 'Type:', file.mimeType, 'Size:', file.size);
       }
     } catch (error) {
       console.error('❌ Error selecting file:', error);
@@ -270,14 +299,14 @@ export default function UploadScreen() {
                 styles.fileUploadText, 
                 { color: selectedFile ? Colors[colorScheme ?? 'light'].success : Colors[colorScheme ?? 'light'].primary }
               ]}>
-                {selectedFile ? 'File Selected' : 'Select PDF File'}
+                {selectedFile ? 'File Selected' : 'Select File'}
               </Text>
             </TouchableOpacity>
             
             {selectedFile && selectedFile.assets && selectedFile.assets[0] && (
               <View style={styles.selectedFileInfo}>
                 <Text style={[styles.selectedFileName, { color: Colors[colorScheme ?? 'light'].text }]}>
-                  📄 {selectedFile.assets[0].name}
+                  {getFileIcon(selectedFile.assets[0].mimeType || '')} {selectedFile.assets[0].name}
                 </Text>
                 <Text style={[styles.selectedFileSize, { color: Colors[colorScheme ?? 'light'].gray[500] }]}>
                   {(selectedFile.assets[0].size! / 1024 / 1024).toFixed(2)} MB
@@ -286,7 +315,7 @@ export default function UploadScreen() {
             )}
             
             <Text style={[styles.fileUploadHint, { color: Colors[colorScheme ?? 'light'].gray[500] }]}>
-              PDF files only, max 10MB
+              PDF, DOC, DOCX, PNG, JPG files only, max 10MB
             </Text>
           </View>
 
@@ -337,13 +366,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: 12,
     color: 'white',
     opacity: 0.9,
   },

@@ -1,3 +1,4 @@
+import { pushNotificationService } from '@/services/pushNotificationService';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
@@ -56,11 +57,14 @@ export interface User {
   avatar_url?: string;
   points: number;
   is_admin: boolean;
+  is_verified: boolean;
+  upload_count: number;
   created_at: string;
   updated_at: string;
   department_id: string;
   school?: School;
   department?: Department;
+  recommendation_count?: number;
 }
 
 export interface School {
@@ -101,6 +105,39 @@ export interface Bookmark {
   material_id: string;
   created_at: string;
   material?: Material;
+}
+
+export interface Recommendation {
+  id: string;
+  recommender_id: string;
+  recommended_user_id: string;
+  created_at: string;
+  recommender?: User;
+  recommended_user?: User;
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  bank_name?: string;
+  account_number?: string;
+  account_name?: string;
+  created_at: string;
+  updated_at: string;
+  user?: User;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  read_at?: string;
+  data?: any;
+  created_at: string;
 }
 
 // Database functions
@@ -315,6 +352,12 @@ export const db = {
         school:schools(*)
       `)
       .single();
+    
+    // If material was created successfully, check and update verification
+    if (data && !error) {
+      await this.checkAndUpdateVerification(data.uploader_id);
+    }
+    
     return { data, error };
   },
 
@@ -397,10 +440,10 @@ export const db = {
   },
 
   async incrementDownloadCount(id: string) {
-    // First get the current count
+    // First get the material to get uploader_id and title
     const { data: material, error: fetchError } = await supabase
       .from('materials')
-      .select('download_count')
+      .select('download_count, uploader_id, title')
       .eq('id', id)
       .single();
     
@@ -411,6 +454,17 @@ export const db = {
       .from('materials')
       .update({ download_count: (material.download_count || 0) + 1 })
       .eq('id', id);
+    
+    // Create notification for download
+    if (!error && material.uploader_id) {
+      await this.createNotification(
+        material.uploader_id,
+        'download',
+        'Material Downloaded!',
+        `Your material "${material.title}" has been downloaded by someone!`,
+        { materialId: id, materialTitle: material.title }
+      );
+    }
     
     return { data, error };
   },
@@ -458,6 +512,284 @@ export const db = {
       .eq('material_id', materialId)
       .single();
     return { data: data !== null, error };
+  },
+
+  // Recommendation functions
+  async addRecommendation(recommenderId: string, recommendedUserId: string) {
+    const { data, error } = await supabase
+      .from('recommendations')
+      .insert({ 
+        recommender_id: recommenderId, 
+        recommended_user_id: recommendedUserId 
+      })
+      .select()
+      .single();
+    
+    // Create notification for the recommended user
+    if (data && !error) {
+      const { data: recommender } = await this.getUserById(recommenderId);
+      if (recommender) {
+        await this.createNotification(
+          recommendedUserId,
+          'recommendation',
+          'New Recommendation!',
+          `${recommender.full_name} recommended you!`,
+          { recommenderId, recommenderName: recommender.full_name }
+        );
+      }
+    }
+    
+    return { data, error };
+  },
+
+  async removeRecommendation(recommenderId: string, recommendedUserId: string) {
+    const { data, error } = await supabase
+      .from('recommendations')
+      .delete()
+      .eq('recommender_id', recommenderId)
+      .eq('recommended_user_id', recommendedUserId);
+    return { data, error };
+  },
+
+  async isRecommended(recommenderId: string, recommendedUserId: string) {
+    const { data, error } = await supabase
+      .from('recommendations')
+      .select('id')
+      .eq('recommender_id', recommenderId)
+      .eq('recommended_user_id', recommendedUserId)
+      .single();
+    return { data: data !== null, error };
+  },
+
+  async getUserRecommendations(userId: string) {
+    const { data, error } = await supabase
+      .from('recommendations')
+      .select(`
+        *,
+        recommender:users(*)
+      `)
+      .eq('recommended_user_id', userId)
+      .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  async getRecommendationCount(userId: string) {
+    const { count, error } = await supabase
+      .from('recommendations')
+      .select('*', { count: 'exact', head: true })
+      .eq('recommended_user_id', userId);
+    return { data: count || 0, error };
+  },
+
+  // Verification functions
+  async checkAndUpdateVerification(userId: string) {
+    // Get user's upload count
+    const { count, error: countError } = await supabase
+      .from('materials')
+      .select('*', { count: 'exact', head: true })
+      .eq('uploader_id', userId)
+      .eq('status', 'approved');
+    
+    if (countError) return { data: null, error: countError };
+    
+    const uploadCount = count || 0;
+    const shouldBeVerified = uploadCount >= 10;
+    
+    // Update user's verification status and upload count
+    const { data, error } = await supabase
+      .from('users')
+      .update({ 
+        is_verified: shouldBeVerified,
+        upload_count: uploadCount
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+    
+    return { data, error };
+  },
+
+  // Withdrawal request functions
+  async createWithdrawalRequest(userId: string, bankDetails: {
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+  }) {
+    const { data, error } = await supabase
+      .from('withdrawal_requests')
+      .insert({
+        user_id: userId,
+        amount: 20,
+        bank_name: bankDetails.bankName,
+        account_number: bankDetails.accountNumber,
+        account_name: bankDetails.accountName,
+        status: 'pending'
+      })
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async getWithdrawalRequests(userId: string) {
+    const { data, error } = await supabase
+      .from('withdrawal_requests')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  async approveWithdrawalRequest(requestId: string) {
+    // First get the request
+    const { data: request, error: fetchError } = await supabase
+      .from('withdrawal_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+    
+    if (fetchError) return { data: null, error: fetchError };
+    
+    // Update request status
+    const { data: updatedRequest, error: updateError } = await supabase
+      .from('withdrawal_requests')
+      .update({ status: 'approved' })
+      .eq('id', requestId)
+      .select()
+      .single();
+    
+    if (updateError) return { data: null, error: updateError };
+    
+    // Deduct points from user
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('points')
+      .eq('id', request.user_id)
+      .single();
+    
+    if (userError) return { data: null, error: userError };
+    
+    const newPoints = Math.max(0, user.points - request.amount);
+    
+    const { data: updatedUser, error: pointsError } = await supabase
+      .from('users')
+      .update({ points: newPoints })
+      .eq('id', request.user_id)
+      .select()
+      .single();
+    
+    // Create notification for withdrawal approval
+    if (updatedUser && !pointsError) {
+      await this.createNotification(
+        request.user_id,
+        'withdrawal_approved',
+        'Withdrawal Approved!',
+        `Your withdrawal request of ${request.amount} points has been approved and processed.`,
+        { requestId, amount: request.amount }
+      );
+    }
+    
+    return { data: { request: updatedRequest, user: updatedUser }, error: pointsError };
+  },
+
+  async rejectWithdrawalRequest(requestId: string) {
+    // First get the request to get user_id
+    const { data: request, error: fetchError } = await supabase
+      .from('withdrawal_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+    
+    if (fetchError) return { data: null, error: fetchError };
+    
+    const { data, error } = await supabase
+      .from('withdrawal_requests')
+      .update({ status: 'rejected' })
+      .eq('id', requestId)
+      .select()
+      .single();
+    
+    // Create notification for withdrawal rejection
+    if (data && !error) {
+      await this.createNotification(
+        request.user_id,
+        'withdrawal_rejected',
+        'Withdrawal Rejected',
+        `Your withdrawal request of ${request.amount} points has been rejected. Please contact support for more information.`,
+        { requestId, amount: request.amount }
+      );
+    }
+    
+    return { data, error };
+  },
+
+  // Notification functions
+  async createNotification(userId: string, type: string, title: string, message: string, data?: any) {
+    const { data: notification, error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        type,
+        title,
+        message,
+        data: data || null
+      })
+      .select()
+      .single();
+    
+    // Send push notification if database notification was created successfully
+    if (notification && !error) {
+      try {
+        await pushNotificationService.sendPushNotification(
+          userId,
+          title,
+          message,
+          { ...data, type, notificationId: notification.id }
+        );
+      } catch (pushError) {
+        console.error('Failed to send push notification:', pushError);
+        // Don't fail the whole operation if push notification fails
+      }
+    }
+    
+    return { data: notification, error };
+  },
+
+  async getNotifications(userId: string) {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  async markNotificationAsRead(notificationId: string) {
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', notificationId)
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async markAllNotificationsAsRead(userId: string) {
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('read_at', null)
+      .select();
+    return { data, error };
+  },
+
+  async getUnreadNotificationCount(userId: string) {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('read_at', null);
+    return { data: count || 0, error };
   },
 
   // RPC functions

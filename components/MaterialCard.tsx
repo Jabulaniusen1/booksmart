@@ -6,20 +6,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import {
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface MaterialCardProps {
   material: Material;
   onBookmark: (materialId: string) => void;
+  onRecommend?: (materialId: string) => void;
   currentUserId?: string;
 }
 
-export default function MaterialCard({ material, onBookmark, currentUserId }: MaterialCardProps) {
+export default function MaterialCard({ material, onBookmark, onRecommend, currentUserId }: MaterialCardProps) {
   const colorScheme = useColorScheme();
 
   const formatDate = (dateString: string) => {
@@ -129,20 +130,36 @@ export default function MaterialCard({ material, onBookmark, currentUserId }: Ma
       </View>
 
       <View style={styles.footer}>
-        <View style={styles.uploaderInfo}>
+        <TouchableOpacity 
+          style={styles.uploaderInfo}
+          onPress={() => {
+            if (material.uploader?.id) {
+              router.push({
+                pathname: '/user-profile',
+                params: { userId: material.uploader.id }
+              });
+            }
+          }}
+          activeOpacity={0.7}
+        >
           <Image
             source={getAvatarSource(material.uploader?.id || '', material.uploader?.avatar_url)}
             style={styles.avatar}
           />
           <View>
-            <Text style={[styles.uploaderName, { color: Colors[colorScheme ?? 'light'].text }]}>
-              {material.uploader?.full_name}
-            </Text>
+            <View style={styles.uploaderNameContainer}>
+              <Text style={[styles.uploaderName, { color: Colors[colorScheme ?? 'light'].text }]}>
+                {material.uploader?.full_name}
+              </Text>
+              {material.uploader?.is_verified && (
+                <Ionicons name="checkmark-circle" size={14} color="#10b981" style={styles.verifiedIcon} />
+              )}
+            </View>
             <Text style={[styles.uploadDate, { color: Colors[colorScheme ?? 'light'].gray[500] }]}>
               {formatDate(material.created_at)}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.actions}>
           <TouchableOpacity
@@ -260,9 +277,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginRight: 8,
   },
+  uploaderNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   uploaderName: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  verifiedIcon: {
+    marginLeft: 4,
   },
   uploadDate: {
     fontSize: 12,

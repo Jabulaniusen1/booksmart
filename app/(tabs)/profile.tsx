@@ -1,11 +1,12 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { getAvatarSource } from '@/lib/avatar';
 import { useAppStore } from '@/lib/store';
-import { auth, db } from '@/lib/supabase';
+import { auth, db, Material } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Image,
@@ -32,8 +33,51 @@ export default function ProfileScreen() {
     department: '',
     level: '',
   });
+  const [recommendationCount, setRecommendationCount] = useState(0);
+  const [userMaterials, setUserMaterials] = useState<Material[]>([]);
+  const [loading, setLoading] = useState(false);
   const colorScheme = useColorScheme();
   const { user, setUser } = useAppStore();
+  const { sendTestNotification } = usePushNotifications();
+
+  useEffect(() => {
+    if (user) {
+      loadUserData();
+    }
+  }, [user]);
+
+  const loadUserData = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      // Load recommendation count
+      const { data: count, error: countError } = await db.getRecommendationCount(user.id);
+      if (!countError) {
+        setRecommendationCount(count);
+      }
+
+      // Load user's materials
+      const { data: materialsData, error: materialsError } = await db.getMaterials();
+      if (!materialsError && materialsData) {
+        const myMaterials = materialsData.filter(material => material.uploader_id === user.id);
+        setUserMaterials(myMaterials);
+        
+        // Update verification status based on actual uploads
+        await db.checkAndUpdateVerification(user.id);
+        
+        // Reload user data to get updated verification status
+        const { data: updatedUser, error: userError } = await db.getUserById(user.id);
+        if (!userError && updatedUser) {
+          setUser(updatedUser);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load user data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -172,12 +216,27 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.profileInfo}>
-            <Image 
-              source={getAvatarSource(user.id, user.avatar_url)} 
-              style={styles.avatar} 
-            />
+            <View style={styles.avatarContainer}>
+              <Image 
+                source={getAvatarSource(user.id, user.avatar_url)} 
+                style={styles.avatar} 
+              />
+              {recommendationCount >= 2 && (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                </View>
+              )}
+            </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user.full_name}</Text>
+              <View style={styles.nameContainer}>
+                <Text style={styles.userName}>{user.full_name}</Text>
+                {recommendationCount >= 2 && (
+                  <View style={styles.verifiedTextContainer}>
+                    <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                    <Text style={styles.verifiedText}>Verified</Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.userEmail}>{user.email}</Text>
             </View>
           </View>
@@ -196,9 +255,9 @@ export default function ProfileScreen() {
           </View>
 
           <View style={[styles.statCard, { backgroundColor: Colors[colorScheme ?? 'light'].card }]}>
-            <Ionicons name="thumbs-up" size={24} color={Colors[colorScheme ?? 'light'].primary} />
+            <Ionicons name="star" size={24} color={Colors[colorScheme ?? 'light'].primary} />
             <Text style={[styles.statNumber, { color: Colors[colorScheme ?? 'light'].text }]}>
-              {user.recommendations}
+              {recommendationCount}
             </Text>
             <Text style={[styles.statLabel, { color: Colors[colorScheme ?? 'light'].gray[600] }]}>
               Recommendations
@@ -206,34 +265,74 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Points Progress */}
-        <View style={[styles.progressCard, { backgroundColor: Colors[colorScheme ?? 'light'].card }]}>
-          <View style={styles.progressHeader}>
-            <Text style={[styles.progressTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-              Points Progress
-            </Text>
-            <Text style={[styles.progressSubtitle, { color: Colors[colorScheme ?? 'light'].gray[600] }]}>
-              {user.points}/30 points
-            </Text>
-          </View>
-          <View style={[styles.progressBar, { backgroundColor: Colors[colorScheme ?? 'light'].gray[200] }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: Colors[colorScheme ?? 'light'].primary,
-                  width: `${getPointsProgress()}%`,
-                }
-              ]}
+        {/* Verification Status */}
+        <View style={[styles.verificationCard, { backgroundColor: Colors[colorScheme ?? 'light'].card }]}>
+          <View style={styles.verificationHeader}>
+            <Ionicons 
+              name={user.is_verified ? "checkmark-circle" : "lock-closed"} 
+              size={24} 
+              color={user.is_verified ? "#10b981" : Colors[colorScheme ?? 'light'].gray[500]} 
             />
+            <Text style={[styles.verificationTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+              {user.is_verified ? 'Verified User' : 'Verification Required'}
+            </Text>
           </View>
-          {isEligibleForPayout() && (
-            <View style={[styles.payoutBanner, { backgroundColor: Colors[colorScheme ?? 'light'].success }]}>
-              <Ionicons name="checkmark-circle" size={20} color="white" />
-              <Text style={styles.payoutText}>Eligible for payout!</Text>
+          <Text style={[styles.verificationText, { color: Colors[colorScheme ?? 'light'].gray[600] }]}>
+            {user.is_verified 
+              ? 'You can earn points and request withdrawals'
+              : `Upload ${10 - userMaterials.length} more materials to get verified`
+            }
+          </Text>
+          {!user.is_verified && (
+            <View style={styles.uploadProgress}>
+              <View style={[styles.uploadProgressBar, { backgroundColor: Colors[colorScheme ?? 'light'].gray[200] }]}>
+                <View
+                  style={[
+                    styles.uploadProgressFill,
+                    {
+                      backgroundColor: Colors[colorScheme ?? 'light'].primary,
+                      width: `${Math.min((userMaterials.length / 10) * 100, 100)}%`,
+                    }
+                  ]}
+                />
+              </View>
+              <Text style={[styles.uploadProgressText, { color: Colors[colorScheme ?? 'light'].gray[600] }]}>
+                {userMaterials.length}/10 uploads
+              </Text>
             </View>
           )}
         </View>
+
+        {/* Points Progress - Only show if verified */}
+        {user.is_verified && (
+          <View style={[styles.progressCard, { backgroundColor: Colors[colorScheme ?? 'light'].card }]}>
+            <View style={styles.progressHeader}>
+              <Text style={[styles.progressTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                Points Progress
+              </Text>
+              <Text style={[styles.progressSubtitle, { color: Colors[colorScheme ?? 'light'].gray[600] }]}>
+                {user.points}/30 points
+              </Text>
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: Colors[colorScheme ?? 'light'].gray[200] }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    backgroundColor: Colors[colorScheme ?? 'light'].primary,
+                    width: `${getPointsProgress()}%`,
+                  }
+                ]}
+              />
+            </View>
+            {isEligibleForPayout() && (
+              <View style={[styles.payoutBanner, { backgroundColor: Colors[colorScheme ?? 'light'].success }]}>
+                <Ionicons name="checkmark-circle" size={20} color="white" />
+                <Text style={styles.payoutText}>Eligible for payout!</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* University Info */}
         <View style={[styles.infoCard, { backgroundColor: Colors[colorScheme ?? 'light'].card }]}>
@@ -266,14 +365,95 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* My Uploads */}
+        <View style={[styles.uploadsCard, { backgroundColor: Colors[colorScheme ?? 'light'].card }]}>
+          <View style={styles.uploadsHeader}>
+            <Ionicons name="document-text" size={20} color={Colors[colorScheme ?? 'light'].primary} />
+            <Text style={[styles.uploadsTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+              My Uploads ({userMaterials.length})
+            </Text>
+          </View>
+          
+          {userMaterials.length > 0 ? (
+            <View style={styles.uploadsList}>
+              {userMaterials.slice(0, 5).map((material) => (
+                <TouchableOpacity 
+                  key={material.id} 
+                  style={styles.uploadItem}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/pdf-viewer',
+                      params: { material: JSON.stringify(material) }
+                    });
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.uploadIcon}>
+                    <Ionicons name="document-text" size={20} color={Colors[colorScheme ?? 'light'].primary} />
+                  </View>
+                  <View style={styles.uploadInfo}>
+                    <Text style={[styles.uploadTitle, { color: Colors[colorScheme ?? 'light'].text }]} numberOfLines={1}>
+                      {material.title}
+                    </Text>
+                    <View style={styles.uploadMeta}>
+                      <Text style={[styles.uploadStatus, { 
+                        color: material.status === 'approved' ? '#10b981' : 
+                               material.status === 'pending' ? '#f59e0b' : '#dc2626'
+                      }]}>
+                        {material.status.charAt(0).toUpperCase() + material.status.slice(1)}
+                      </Text>
+                      <Text style={[styles.uploadDate, { color: Colors[colorScheme ?? 'light'].gray[500] }]}>
+                        {new Date(material.created_at).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={Colors[colorScheme ?? 'light'].gray[400]} />
+                </TouchableOpacity>
+              ))}
+              {userMaterials.length > 5 && (
+                <Text style={[styles.moreUploads, { color: Colors[colorScheme ?? 'light'].gray[500] }]}>
+                  +{userMaterials.length - 5} more uploads
+                </Text>
+              )}
+            </View>
+          ) : (
+            <View style={styles.emptyUploads}>
+              <Ionicons name="document-outline" size={48} color={Colors[colorScheme ?? 'light'].gray[400]} />
+              <Text style={[styles.emptyUploadsText, { color: Colors[colorScheme ?? 'light'].gray[600] }]}>
+                No uploads yet
+              </Text>
+              <Text style={[styles.emptyUploadsSubtext, { color: Colors[colorScheme ?? 'light'].gray[500] }]}>
+                Start uploading materials to get verified!
+              </Text>
+              <TouchableOpacity
+                style={[styles.uploadButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
+                onPress={() => router.push('/(tabs)/upload')}
+              >
+                <Ionicons name="add" size={20} color="white" />
+                <Text style={styles.uploadButtonText}>Upload Material</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
+          {user.is_verified && (
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
+              onPress={handleBankDetails}
+            >
+              <Ionicons name="card" size={20} color="white" />
+              <Text style={styles.actionButtonText}>Bank Details</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
-            onPress={handleBankDetails}
+            onPress={sendTestNotification}
           >
-            <Ionicons name="card" size={20} color="white" />
-            <Text style={styles.actionButtonText}>Bank Details</Text>
+            <Ionicons name="notifications" size={20} color="white" />
+            <Text style={styles.actionButtonText}>Test Push Notification</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -517,20 +697,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 16,
+  },
   avatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    marginRight: 16,
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 2,
   },
   userInfo: {
     flex: 1,
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   userName: {
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 4,
+    marginRight: 8,
+  },
+  verifiedTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  verifiedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#10b981',
+    marginLeft: 4,
   },
   userEmail: {
     fontSize: 14,
@@ -607,6 +817,45 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  verificationCard: {
+    margin: 20,
+    marginTop: 0,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  verificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  verificationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  verificationText: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  uploadProgress: {
+    marginTop: 8,
+  },
+  uploadProgressBar: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  uploadProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  uploadProgressText: {
+    fontSize: 12,
+    textAlign: 'center',
   },
   infoCard: {
     margin: 20,
@@ -739,5 +988,97 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: 20,
+  },
+  uploadsCard: {
+    margin: 20,
+    marginTop: 0,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  uploadsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  uploadsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  uploadsList: {
+    gap: 8,
+  },
+  uploadItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+  },
+  uploadIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f0fdf4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  uploadInfo: {
+    flex: 1,
+  },
+  uploadTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  uploadMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  uploadDate: {
+    fontSize: 12,
+  },
+  moreUploads: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  emptyUploads: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyUploadsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptyUploadsSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 8,
+  },
+  uploadButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
